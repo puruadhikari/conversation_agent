@@ -1,164 +1,85 @@
 import streamlit as st
 import pandas as pd
 
-# Configure page layout to use the full width
-st.set_page_config(layout="wide", page_title="Content Analysis Suite", page_icon="📄")
-
-# --- Sidebar for navigation ---
-st.sidebar.title("Navigation")
-selection = st.sidebar.radio(
-    "Go to:",
-    ["Document Similarity", "Authoring Assistance"],
-    key="navigation_selection"
+# Configure Streamlit page settings
+st.set_page_config(
+    page_title="Content Analysis Suite",
+    page_icon="📄",
+    layout="wide"
 )
 
+# Sidebar navigation
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Select Feature", ["Document Similarity", "Authoring Assistance"])
 
-def similarity_api_response():
-    global response_payload
-    # Example response JSON (simulated for demonstration)
-    response_payload = {
-        "response": {
-            "matchingArticles": [
-                {
-                    "articleID": "ARTCL-001",
-                    "articleURL": "http://example.com/matching-article-1",
-                    "matchingPercentage": 85.4,
-                    "reasonForMatching": "High overlap in key topics and terminology. Both discuss 'sustainable energy solutions'."
-                },
-                {
-                    "articleID": "ARTCL-002",
-                    "articleURL": "http://example.com/matching-article-2",
-                    "matchingPercentage": 78.2,
-                    "reasonForMatching": "Similar content structure, references similar studies on 'AI ethics'."
-                },
-                {
-                    "articleID": "ARTCL-005",
-                    "articleURL": "http://example.com/matching-article-3",
-                    "matchingPercentage": 72.9,
-                    "reasonForMatching": "Focuses on 'data privacy regulations', shares common citations."
-                }
-            ],
-            "noMatchingArticles": [
-                {
-                    "articleID": "ARTCL-003",
-                    "articleURL": "http://example.com/non-matching-article-1",
-                    "matchingPercentage": 45.7,
-                    "reasonForNotMatching": "Different topic focus: 'ancient history' vs. input 'AI ethics'."
-                }
-            ]
-        }
+# Helper function for simulated API response
+def get_similarity_response():
+    return {
+        "matchingArticles": [
+            {"ID": "ARTCL-001", "URL": "http://example.com/article-1", "Similarity (%)": 85.4, "Reason": "High overlap in key topics (sustainable energy solutions)."},
+            {"ID": "ARTCL-002", "URL": "http://example.com/article-2", "Similarity (%)": 78.2, "Reason": "Similar structure and citations on AI ethics."},
+            {"ID": "ARTCL-005", "URL": "http://example.com/article-3", "Similarity (%)": 72.9, "Reason": "Common focus on data privacy regulations."}
+        ],
+        "nonMatchingArticles": [
+            {"ID": "ARTCL-003", "URL": "http://example.com/article-4", "Similarity (%)": 45.7, "Reason": "Topic mismatch: ancient history vs AI ethics."}
+        ]
     }
-    # --- End of simulated API call section ---
 
+# Page: Document Similarity
+if page == "Document Similarity":
+    st.title("🔍 Article Similarity Checker")
 
-# --- Document Similarity Page ---
-if selection == "Document Similarity":
-    # Main title for Document Similarity, styled with Amex blue
-    st.markdown("<h1 style='color: #006FCF; text-align: left;'>Article Similarity Checker</h1>", unsafe_allow_html=True)
+    st.markdown("Enter an article URL or paste the article text to find similar articles.")
 
-    st.markdown("Enter an article URL or paste the text directly to find similar articles from our database.")
+    input_type = st.radio("Select input type:", ["URL", "Text"], horizontal=True)
 
-    # Input type selection
-    input_method_col1, input_method_col2 = st.columns([1, 3])
-    with input_method_col1:
-        is_url = st.checkbox("Input is URL", value=True, key="is_url_checkbox")
-
-    # Depending on checkbox, show appropriate input field
-    if is_url:
-        value = st.text_input("Enter Article URL:", placeholder="e.g., https://www.example.com/article",
-                              key="article_url_input")
+    if input_type == "URL":
+        user_input = st.text_input("Article URL", placeholder="https://www.example.com/article")
     else:
-        value = st.text_area("Enter Article Text:", height=200, placeholder="Paste your article text here...",
-                             key="article_text_input")
+        user_input = st.text_area("Article Text", height=200, placeholder="Paste the text of your article here.")
 
-    # Button to trigger similarity check
-    if st.button("Check Similarity", key="check_similarity_button"):
-        if not value.strip():
-            st.warning("Please enter an article URL or text.")
+    if st.button("Check Similarity", type="primary"):
+        if not user_input.strip():
+            st.warning("Please provide a valid URL or text to proceed.")
         else:
-            # Construct request JSON (though not displayed, it might be needed for an actual API call)
-            request_payload = {
-                "request": {
-                    "type": "URL" if is_url else "Text",
-                    "value": value,
-                    "isURL": is_url,
-                    "isText": not is_url
-                }
-            }
+            response = get_similarity_response()
+            matching, non_matching = response["matchingArticles"], response["nonMatchingArticles"]
 
-            # --- This is where you would typically make an API call ---
-            # For demonstration, using the simulated response:
-            # st.info("Simulating API call... Please replace this with your actual API integration.") # Removed this line
+            st.divider()
 
-            similarity_api_response()
-
-            st.markdown("---")  # Visual separator
-            # Removed Request Details section
-            # st.subheader("Request Details")
-            # st.json(request_payload)
-            # st.markdown("---") # Visual separator
-
-            # Extract matching and non-matching articles
-            matching_articles = response_payload["response"].get("matchingArticles", [])
-            non_matching_articles = response_payload["response"].get("noMatchingArticles", [])
-
-            # Display matching articles in a table
-            if matching_articles:
-                st.subheader("Highly Similar Articles Found")
-                df_match = pd.DataFrame(matching_articles)
-                df_match = df_match.rename(columns={
-                    "articleID": "Article ID",
-                    "articleURL": "Article URL",
-                    "matchingPercentage": "Similarity (%)",
-                    "reasonForMatching": "Basis of Similarity"
-                })
-                st.dataframe(df_match)
+            if matching:
+                st.subheader("✅ Highly Similar Articles")
+                df_matching = pd.DataFrame(matching)
+                st.dataframe(df_matching, use_container_width=True)
             else:
-                st.info("No highly similar articles found based on the provided input.")
+                st.info("No highly similar articles found.")
 
-            # Display non-matching (or less similar) articles if any
-            if non_matching_articles:
-                st.subheader("Less Similar Articles / Potential Distinctions")
-                df_non = pd.DataFrame(non_matching_articles)
-                df_non = df_non.rename(columns={
-                    "articleID": "Article ID",
-                    "articleURL": "Article URL",
-                    "matchingPercentage": "Similarity (%)",
-                    "reasonForNotMatching": "Reason for Lower Similarity"
-                })
-                st.dataframe(df_non)
-            elif not matching_articles:
-                pass
-            else:
-                st.success("All other analyzed articles were below the distinct similarity threshold.")
+            if non_matching:
+                st.subheader("⚠️ Less Similar Articles")
+                df_non_matching = pd.DataFrame(non_matching)
+                st.dataframe(df_non_matching, use_container_width=True)
 
+# Page: Authoring Assistance
+elif page == "Authoring Assistance":
+    st.title("✍️ Assisted Authoring")
 
-# --- Authoring Assistance Page ---
-elif selection == "Authoring Assistance":
-    # Main title for Authoring Assistance, styled with Amex blue
-    st.markdown("<h1 style='color: #006FCF; text-align: left;'>Assisted Authoring</h1>",
-                unsafe_allow_html=True)
+    st.markdown("This tool supports content creation and editing with advanced features.")
 
-    st.markdown(
-        "This section is designed to provide tools and insights to assist with content creation, editing, and formatting. Explore the features below to streamline your writing process.")
+    st.warning("🚧 Feature Under Development 🚧", icon="🛠️")
 
-    st.info("🚧 This section is currently under development. More features coming soon! 🚧", icon="🛠️")
-
-    # Placeholder for future features
-    st.subheader("Upcoming Features:")
+    st.subheader("Upcoming Features")
     st.markdown("""
-    - **Check similar content :** Find similar content across systems.
-    - **Assisted Authoring:** AI working with Authors to create a document with Author's feedback.
-    - **Grammar and Style Checker:** Advanced checks beyond basic spell-checking.
-    - **Content Formatting Utilities:** Tools to easily structure and format your articles.
+    - **Content Similarity Check:** Analyze similar content across systems.
+    - **AI-assisted Writing:** Collaborative content creation with AI recommendations.
+    - **Grammar and Style Enhancement:** Advanced grammar and style checks.
+    - **Formatting Utilities:** Effortlessly structure and format articles.
     """)
 
-# --- Footer ---
-st.markdown("---")
+# Footer
+st.divider()
 st.markdown(
-    """
-    <div style="text-align: center; padding: 1rem;">
-        <small>@ GSG | Global Servicing Group| Content Analysis Suite v1.0</small>
-    </div>
-    """, unsafe_allow_html=True
+    """<div style='text-align: center; padding: 0.5rem;'>
+        <small>© GSG | Global Servicing Group | Content Analysis Suite v1.0</small>
+    </div>""",
+    unsafe_allow_html=True
 )
